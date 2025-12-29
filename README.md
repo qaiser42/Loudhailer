@@ -23,18 +23,18 @@ If you have no clue about [Akka (Streams)](http://akka.io) or are unfamiliar wit
 
 LoudHailer's main processing skeleton looks like this:
 
-{% highlight scala %}
+```
 Source.tick(0 second, 5 seconds, ())
         .map(sample)
         .map(analyse)
         .runForeach(act)
-{% endhighlight %}
+```
 
 Every five seconds we're sampling, analysing the recording and acting on the spoken words. Let's examine the steps `sample`, `analyse` and `act` in more detail:
 
-{% highlight scala %}
+```
 def sample: Unit => Sample = _ => SoundRecorder.sample
-{% endhighlight %}
+```
 
 This function obviously returns a `Sample` value, which itself is a type alias for `Xor[Error, Array[Byte]]`. The semantic behind this type is:
 either there was an error during the sampling or we're successfully referencing the recording as a raw byte array. `SoundRecorder.sample` again is rather boring: it's utilizing
@@ -42,7 +42,7 @@ the `javax.sound` API to take the actual record.
 
 Next we'll examine a more interesting part of the stream: analysing the recording via [wit.ai](http://wit.ai) (NLP-as-a-Service)
 
-{% highlight scala %}
+```
 def analyse: Sample => Future[Hypothesis] = {
     case Xor.Left(e) => Future.failed(e)
     case Xor.Right(data) =>
@@ -59,7 +59,7 @@ def request: Array[Byte] => Future[HttpResponse] = data =>
     headers = List(headers.RawHeader("Authorization", s"Bearer $witToken")),
     entity = HttpEntity(contentType = `audio/wav`, data)))
 
-{% endhighlight %}
+```
 
 For a given Sample object, `analyse` returns a `Future[Hypothesis]`. What you're seeing in the `Xor.Right` case is a [for-comprehension](http://docs.scala-lang.org/tutorials/FAQ/yield.html),
 which is just syntactic sugar for chaining `flatMap`, `map`, `filter`, etc. functions in a more concise way on the underlying type. Here it's a `Future` object. I assume that you're familiar with
@@ -72,7 +72,7 @@ Let's dig deeper into it: depending whether the sampling was successful (`Xor.Ri
 
 Finally `act` verifies if the present hypothesis is a blacklisted term, and if so, then we're broadcasting it via [Firebase](https://firebase.google.com/) it to the clients.
 
-{% highlight scala %}
+```
 def act: Future[Hypothesis] => Unit = f => {
     f.onComplete {
       case Success(h) => if (blackList.contains(response.hypothesis)) broadcastEvent()
@@ -95,7 +95,7 @@ def broadcastEvent() = {
         headers = List(headers.RawHeader("Authorization", s"key=$fireBaseToken")),
         entity = HttpEntity(contentType = `application/json`, body.noSpaces)))
   }
-{% endhighlight %}
+```
 
 ### Summing up
 
